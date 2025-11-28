@@ -1024,6 +1024,22 @@ Skips any fully blank lines."
       (skip-chars-forward "[:space:]\n")
       (max (current-indentation) prior-indent))))
 
+(defun indent-bars--exclude-line-p (pos)
+  "Return non-nil if the line at POS should not show indent bars.
+
+Checks the face at the first non-whitespace character against
+`indent-bars-exclude-faces`."
+  (when indent-bars-exclude-faces
+    (save-excursion
+      (goto-char pos)
+      (back-to-indentation)
+      (let ((face (get-text-property (point) 'face)))
+        (when face
+          (let ((faces (if (listp face) face (list face))))
+            (cl-some (lambda (f)
+                       (memq f indent-bars-exclude-faces))
+                     faces)))))))
+
 (defvar-local indent-bars--update-depth-function nil)
 (defvar-local indent-bars--ppss nil)
 (defun indent-bars--current-indentation-depth (&optional on-bar)
@@ -1054,19 +1070,6 @@ and can return an updated depth."
   (let* ((c (current-indentation))
 	 (d (indent-bars--depth c)) 	;last visible bar
 	 ppss-ind)
-    (when indent-bars-exclude-faces
-      (save-excursion
-        (beginning-of-line)
-        (skip-chars-forward " \t" (line-end-position))
-        (let* ((face (get-text-property (point) 'face))
-               (faces (cond
-                       ((null face) nil)
-                       ((listp face) face)
-                       (t (list face)))))
-          (when (and faces
-                     (seq-some (lambda (f) (memq f faces))
-                               indent-bars-exclude-faces))
-            (cl-return-from indent-bars--current-indentation-depth 0)))))
     (when indent-bars--ppss
       (save-excursion
 	(forward-line 0)
@@ -1229,11 +1232,12 @@ Moves point."
 BEG and END should be on the same line.  STYLE, SWITCH-AFTER and
 STYLE2 are as in `indent-bars--draw-line'.  If STYLE is not
 passed, uses `indent-bars-style' for drawing."
-  (let ((n (save-excursion
-	     (goto-char beg)
-	     (indent-bars--current-indentation-depth))))
-    (and (> n 0) (indent-bars--draw-line style n beg end nil
-					 switch-after style2))))
+  (unless (indent-bars--exclude-line-p beg)
+    (let ((n (save-excursion
+	       (goto-char beg)
+	       (indent-bars--current-indentation-depth))))
+      (and (> n 0) (indent-bars--draw-line style n beg end nil
+					   switch-after style2)))))
 
 (defun indent-bars--display-blank-lines (beg end &optional style switch-after style2)
   "Display appropriate bars over the blank-only lines from BEG..END.
