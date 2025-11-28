@@ -1027,25 +1027,17 @@ Skips any fully blank lines."
 (defun indent-bars--exclude-line-p (pos)
   "Return non-nil if the line at POS should not show indent bars.
 
-A line is excluded if *any* character on that line has a face
-listed in `indent-bars-exclude-faces`."
+Checks the face at the first non-whitespace character against indent-bars-exclude-faces."
   (when indent-bars-exclude-faces
     (save-excursion
       (goto-char pos)
-      (let ((beg (line-beginning-position))
-            (end (line-end-position))
-            (found nil))
-        (while (and (< beg end) (not found))
-          (let* ((next (next-single-property-change beg 'face nil end))
-                 (face (get-text-property beg 'face)))
-            (when face
-              (let ((faces (if (listp face) face (list face))))
-                (setq found
-                      (cl-some (lambda (f)
-                                 (memq f indent-bars-exclude-faces))
-                               faces))))
-            (setq beg (or next end)))
-        found)))))
+      (back-to-indentation)
+      (let ((face (get-text-property (point) 'face)))
+        (when face
+          (let ((faces (if (listp face) face (list face))))
+            (cl-some (lambda (f)
+                       (memq f indent-bars-exclude-faces))
+                     faces)))))))
 
 (defvar-local indent-bars--update-depth-function nil)
 (defvar-local indent-bars--ppss nil)
