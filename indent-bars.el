@@ -540,7 +540,7 @@ NO-REMAP is passed to `indent-bars--background-color'."
   (when-let ((bg-cons (indent-bars--background-color no-remap)))
     (if (consp bg-cons) (cdr bg-cons) bg-cons)))
 
-(defun indent-bars--background-color(&optional no-remap)
+(defun indent-bars--background-color (&optional no-remap)
   "Return the background color in the current buffer/frame.
 Unless NO-REMAP is non-nil, if the background comes from remapping,
 return (REMAP . COLOR).  Otherwise ignore remapping."
@@ -1045,7 +1045,7 @@ listed in `indent-bars-exclude-faces`."
                                  (memq f indent-bars-exclude-faces))
                                faces))))
             (setq beg (or next end)))
-        found))))
+        found)))))
 
 (defvar-local indent-bars--update-depth-function nil)
 (defvar-local indent-bars--ppss nil)
