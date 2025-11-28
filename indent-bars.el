@@ -97,13 +97,25 @@
 		 (run-hooks 'indent-bars-custom-set))
 	       and return win))))
 
+
+(defcustom indent-bars-exclude-faces nil
+  "Faces that should suppress indent bars on a line.
+
+If the first non-whitespace character on a line has any face in
+this list, no indent bars are drawn on that line.  This is useful
+for docstrings/doc-comments that you want to appear as a single
+flat background chip without indent guides cutting through them."
+  :type '(repeat face)
+  :group 'indent-bars)
+
+
 ;;;;; Stipple Bar Shape
 (defcustom indent-bars-width-frac 0.25
   "The width of the indent bar as a fraction of the character width.
 Applies to stipple-based bars only."
   :type '(float :tag "Width Fraction"
-		:match (lambda (_ val) (and val (<= val 1) (>= val 0)))
-		:type-error "Fraction must be between 0 and 1")
+	  :match (lambda (_ val) (and val (<= val 1) (>= val 0)))
+	  :type-error "Fraction must be between 0 and 1")
   :group 'indent-bars-style
   :set #'indent-bars--custom-set
   :initialize #'custom-initialize-default)
@@ -1042,6 +1054,19 @@ and can return an updated depth."
   (let* ((c (current-indentation))
 	 (d (indent-bars--depth c)) 	;last visible bar
 	 ppss-ind)
+    (when indent-bars-exclude-faces
+      (save-excursion
+        (beginning-of-line)
+        (skip-chars-forward " \t" (line-end-position))
+        (let* ((face (get-text-property (point) 'face))
+               (faces (cond
+                       ((null face) nil)
+                       ((listp face) face)
+                       (t (list face)))))
+          (when (and faces
+                     (seq-some (lambda (f) (memq f faces))
+                               indent-bars-exclude-faces))
+            (cl-return-from indent-bars--current-indentation-depth 0)))))
     (when indent-bars--ppss
       (save-excursion
 	(forward-line 0)
