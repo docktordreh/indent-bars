@@ -4,20 +4,26 @@
 <a href="#installconfig"><b>INSTALL</b></a> ⏐
 <a href="#customization"><b>CUSTOMIZE</b></a> ⏐
 <a href="#details-and-caveats"><b>MORE DETAILS</b></a>
-</p> <a href="https://elpa.gnu.org/packages/indent-bars.html"><img alt="GNU ELPA" src="https://elpa.gnu.org/packages/indent-bars.svg"/></a> 
-<img align="right" width="500" src="https://github.com/jdtsmith/indent-bars/assets/93749/0eaa0d85-0893-4893-8a56-a63ab6eeac1c"/><img align="right" width="10" height="476" src="https://github.com/jdtsmith/indent-bars/assets/93749/c4df4fbe-7aab-4b4e-bb89-7c6a70755e9d"/>
+</p> 
+<a href="https://elpa.gnu.org/packages/indent-bars.html"><img alt="GNU ELPA" src="https://elpa.gnu.org/packages/indent-bars.svg"/></a> 
 
-This package provides indentation _guide bars_ in Emacs, with optional tree-sitter enhancement:
+<!-- Note: <picture>..</picture> required for padding to be visible -->
+<picture> 
+  <img align="right" src="https://github.com/jdtsmith/indent-bars/assets/93749/0eaa0d85-0893-4893-8a56-a63ab6eeac1c">
+</picture>
+
+This package provides fast, flexible indentation _guide bars_ in Emacs, with optional `tree-sitter` enhancement:
 
 - Optimized for speed.
 - Optional tree-sitter support, including _scope focus_, among [other features](#tree-sitter-details).
 - Supports either space or tab-based indentation.
-- Bar appearance is _highly_ [configurable](#customization): color, blending, width, position within the character, vertical fill/blank pattern, even zigzag (see [examples](examples.md)).
-- Bars can have optional depth-based coloring, with a cyclical color palette you can [customize](#customization).
-- Fast current-depth bar highlighting with configurable bar color and/or appearance changes.
 - Bars can appear on blank lines.
+- Bars can have optional depth-based coloring, with a cyclical color palette you can [customize](#customization).
+- Bar appearance is _highly_ [configurable](#customization): color, blending, width, position within the character, vertical fill/blank pattern, even zigzag (see [examples](examples.md)).
+- Fast [current-depth bar highlighting](#current-depth-highlighting) with configurable bar color and/or appearance changes.
 - Bar depth can be held constant inside multi-line strings and lists.
-- Works in the terminal, using a vertical bar character.
+- Supports [bar-skipping](#bar-setup-and-location) in multiply-nested list structures.
+- Works in the [terminal](#character-based-bars-and-terminal), using a vertical bar character.
 
 ## What's New
 
@@ -43,7 +49,7 @@ See the release [NEWS](NEWS.org).
 - **I want a bar in the very first column!** <br>Set `indent-bars-starting-column` to 0.
 - **indent-bars seems to be conflicting with another package I use.** <br>See [these workarounds](#compatibility-with-other-packages).
 - **In my brace language (C, JS, etc.) I sometimes get fewer bars than I expected!** <br>Your mode syntax likely interprets `{`/`}` as list context, and you have `indent-bars-no-descend-lists=t`.  Either disable this feature, or see [this config](#bar-setup-and-location) for another option.
-- **In my paren language (Elisp, Scheme, etc.) the bars disappear on some lines!**<br> You probably need to disable `indent-bars-no-descend-lists` there: most lines of these languages are inside "continuing lists", so it makes little sense to inhibit bars there.
+- **In my paren language (Elisp, Scheme, etc.) the bars disappear on some lines!**<br> You probably need to disable `indent-bars-no-descend-lists` or set it to `skip` there: almost all lines of these languages are inside nested "continuing lists".
 - **Bars are missing on lines with tabs!**<br> You likely have `indent-tabs-mode` set to `nil` in a buffer with a tab-indented file.  See [this for more](#indentation).
 
 ## Tree-sitter and Scope
@@ -77,13 +83,13 @@ Configures `tree-sitter` and `ignore-blank-line` support for an example language
 ```elisp
 (use-package indent-bars
   :custom
-  (indent-bars-no-descend-lists t) ; no extra bars in continued func arg lists
+  (indent-bars-no-descend-lists 'skip) ; prevent extra bars in nested lists + skip intermediate bars
   (indent-bars-treesit-support t)
   (indent-bars-treesit-ignore-blank-lines-types '("module"))
-  ;; Add other languages as needed
+  ;; Add other languages as needed; check the wiki
   (indent-bars-treesit-scope '((python function_definition class_definition for_statement
 	  if_statement with_statement while_statement)))
-  ;; Note: wrap may not be needed if no-descend-list is enough
+  ;; Note: wrap likely not be needed if no-descend-list is enough
   ;;(indent-bars-treesit-wrap '((python argument_list parameters ; for python, as an example
   ;;				      list list_comprehension
   ;;				      dictionary dictionary_comprehension
@@ -166,7 +172,22 @@ Configuration variables for bar position and line locations (including on blank 
 - `indent-bars-spacing-override`:  Normally the number of spaces for indentation is automatically discovered from the mode and other variables.  If that doesn't work for any reason, it can be explicitly overridden using this variable.
 - `indent-bars-display-on-blank-lines`: Whether to display bars on blank lines contiguous with lines already showing bars.  By default the maximum number of adjacent bars on non-blank lines is used for a blank lines, but setting this to `least` instead uses the _least_ number of adjacent line bars.
 - `indent-bars-no-descend-string`: Whether to inhibit increasing bar depth inside of strings.
-- `indent-bars-no-descend-list`: Whether to inhibit increasing bar depth inside of lists.  Note that this can optionally be configured with a list of list-opening chars (e.g. `'(?\( ?\[)`?) to select only certain list context (useful for c-based modes, where `{}` braces are a list syntax).
+- `indent-bars-no-descend-list`: Whether to inhibit increasing bar depth inside of lists.  Additionally, if set to the symbol `skip`, bars _between_ lists contexts are skipped (not displayed). An example with `indent-bars-no-descend-list=skip` shows how intermediate bars in nested lists contexts are skipped:
+
+   <img width="394" height="347" alt="image" src="https://github.com/user-attachments/assets/602c6466-c9bc-4718-a9e7-5e91fda0f86a" />
+
+- If you need to alter what `indent-bars` considers a list context, override the variable `indent-bars-ppss-syntax-table`, e.g. for altering `python-mode` to omit `{`/`}` from consideration:
+
+   ```elisp
+    (setq indent-bars-ppss-syntax-table
+          (let ((table (make-syntax-table python-mode-syntax-table)))
+            ;; Remove { and } from list context
+            (modify-syntax-entry ?\{ "." table)
+            (modify-syntax-entry ?\} "." table)
+            table))
+    ```
+
+See also [treesitter](#tree-sitter) for configuration that can affect bar location in TS-enabled buffers.
 
 ## Character-based bars and terminal
 
@@ -200,7 +221,7 @@ To customize the alternate bar appearance, you use the parallel set of custom va
 You can interchange the role of in-scope and out-of-scope using `indent-bars-ts-styling-scope`.  This is useful if you prefer to have the _default_ style (e.g. the bar style in non-tree-sitter-enabled buffers) match the out-of-scope style within tree-sitter buffers (i.e. if you want to _emphasize_ bars within scope, not _de-emphasize_ out-of-scope bars).
 
 > [!NOTE]
-> _Scope focus_ highlighting is completely independent of _current depth highlighting_, and you can style them separately, and can enable one or the other, both, or neither.
+> _Scope focus_ highlighting is completely independent of _current depth highlighting_. You can enable one or the other, both, or neither, and they can be styled separately.
 
 The `ts` custom variables for configuring the alternate styling are:
 
@@ -250,7 +271,7 @@ Note that tree-sitter scope and wrap config are keyed to the parser _language_, 
 
 ## Indentation
 
-`indent-bars` works with either space- or tab-based indentation (see `indent-tabs-mode`).  If possible, prefer space indentation, as it is faster.  
+`indent-bars` works with either space- or tab-based indentation (see `indent-tabs-mode`).  If possible, prefer space indentation, as it is faster.
 
 Note that some modes explicitly enable or disable `indent-tabs-mode`.  If the value of that variable does not match the actual indentation used in a file (e.g. file is indented with tabs, but you have set `indent-tabs-mode=nil`), bars may go missing.  You should ideally pick _one_ indentation-style (tabs or spaces) per mode and stick to it for all files in that mode, but see [dtrt-indent](https://github.com/jscheid/dtrt-indent) for a package that can adapt this variable by examining the file's contents.
 
@@ -263,6 +284,10 @@ Note that some modes explicitly enable or disable `indent-tabs-mode`.  If the va
 3. `context`: The new default, a blend of these two methods.  It selects the last-visible bar (à la `nil`), _unless_ an adjacent non-blank line (above or below) is indented deeper by at least one level, in which case the `on-bar` approach is used.
 
 Experiment with these to see which you prefer.
+
+## Ensuring `indent-bars` initializes _last_
+
+If you alter important variables that affect the indentation spacing after `indent-bars` is setup in a buffer, e.g. in a mode hook or using `dtrt-indent` or similar packages, `indent-bars` may not work correctly.  You _must_ ensure that `indent-bars-mode` is initialized _after_ all configuration work affecting indent spacing or style (tabs vs. space) has been done.  See [this issue](../../issues/127) for an example of the type of configuration needed.
 
 ## Tree-sitter Details
 
@@ -284,7 +309,7 @@ Simply configure `indent-bars-treesit-scope` with the languages and node types f
 > If you don't know the name treesitter uses for your language, try `M-: (treesit-language-at (point-min))` in a ts-enabled buffer.
 
 #### Wrap
-`indent-bars-treesit-wrap` can be configured in a similar manner (mapping language to wrapping node types). Note that `indent-bars-no-descend-list`, which does not require tree-sitter and is on by default, may be sufficient for your uses.
+`indent-bars-treesit-wrap` can be configured in a similar manner (mapping language to wrapping node types). Note that `indent-bars-no-descend-list`, which does not require tree-sitter, may be sufficient for your uses.
 
 #### Ignore certain blank lines
 You can assign a single (usually top-level) node type to ignore when drawing bars on blanks linkes; see `indent-bars-treesit-ignore-blank-lines-types` (which, please note, is configured as a list of _strings_, unlike `indent-bars-treesit-wrap/scope`).
