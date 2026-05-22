@@ -355,7 +355,13 @@ Sometimes unwanted stipples can be worked around yourself by explicitly setting 
 (set-face-attribute face nil :stipple nil)
 ```
 
-for some relevant `face` (e.g. one from which the package's faces used for overlay/popup inherit).  This should be done both when loading `indent-bars-mode` and in the `after-enable-theme-hook`. 
+for some relevant `face` (e.g. one from which the package's faces used for overlay/popup inherit).  For the tooltip inheritance issue in [#73](../../issues/73), this can be as simple as:
+
+```elisp
+(set-face-attribute 'tooltip nil :stipple nil)
+```
+
+Apply this both when enabling `indent-bars-mode` and in `after-enable-theme-hook`.
 
 ### `font-lock` contention
 
